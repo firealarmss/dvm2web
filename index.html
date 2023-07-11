@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Streaming</title>
+    <script src="/public/pcm-player.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            background-color: aqua;
+        }
+
+        .container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .image {
+            display: block;
+        }
+
+        .line2 {
+            position: absolute;
+            top: 43%;
+            left: 51%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            color: black;
+            font-size: 25px;
+            font-family: Calibri;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .line1 {
+            position: absolute;
+            top: 32%;
+            left: 51%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            color: black;
+            font-size: 20px;
+            font-family: Calibri;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .pwr_button {
+            position: absolute;
+            border-radius: 100%;
+            cursor: pointer;
+            top: 69%;
+            left: 19%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            font-size: 13px;
+            font-family: Calibri;
+            font-weight: bold;
+            text-align: center;
+            color: transparent;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            border: 0;
+        }
+
+        .last_heard {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .last_heard_header {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+<center>
+    <div class="container">
+        <img class="image" src="/public/o5.jpg" alt="Head">
+        <div id="line1" class="line1"></div>
+        <div id="line2" class="line2"></div>
+        <button id="pwr_button" class="pwr_button" onclick="radioPower()">PW</button>
+    </div>
+</center>
+<div class="last_heard">
+    <h3 class="last_heard_header">Last Heard:</h3>
+    <ul id="last_heard_list"></ul>
+</div>
+<script>
+    let socket = io();
+
+    let pwr_on = false;
+    let talking;
+    let current_channel = "xOPS";
+    let current_zone = "Centrunk";
+
+    function start() {
+        pwr_on = true;
+        setTimeout(function () {
+            document.getElementById('line1').innerHTML = current_zone;
+            document.getElementById('line2').innerHTML = current_channel;
+
+            var player = new PCMPlayer({
+                encoding: '16bitInt',
+                channels: 1,
+                sampleRate: 8000,
+                flushingTime: 2000,
+                onAudioEnd: audioStopped,
+                onAudioStart: audioStarted
+            });
+            socket.on('channelAudio', function (msg) {
+                const rcv_data = JSON.parse(msg);
+                let data = new Uint8Array(rcv_data.audio.data);
+                current_channel = tg_alias(rcv_data.dstId);
+                talking = rcv_data.srcId;
+                player.feed(data);
+            });
+            let lineToggle = false;
+            let intervalId;
+
+            socket.on('disconnect', function (msg) {
+                intervalId = setInterval(toggleLines, 2000);
+            });
+            socket.on('connection', function (msg){
+                console.log("reconnected");
+                clearInterval(intervalId);
+                const currentChannelElement = document.getElementById('line2');
+                currentChannelElement.innerHTML = current_channel;
+            });
+
+            function toggleLines() {
+                const line2Element = document.getElementById('line2');
+                const currentChannelElement = document.getElementById('line2');
+
+                if (lineToggle) {
+                    line2Element.innerHTML = "Site Trunking";
+                    currentChannelElement.innerHTML = current_channel;
+                } else {
+                    line2Element.innerHTML = current_channel;
+                    currentChannelElement.innerHTML = "Site Trunking";
+                }
+
+                lineToggle = !lineToggle;
+            }
+
+            function audioStopped() {
+                setTimeout(function () {
+                    document.getElementById('line2').innerHTML = current_channel;
+                }, 2000);
+            }
+
+            function audioStarted() {
+                document.getElementById('line2').innerHTML = "ID: " + talking;
+            }
+
+            function tg_alias(tg_alias_name) {
+                const alias_list = {
+                    31611: "xOPS",
+                    31612: "xTAC 1",
+                    1056: "13-5L Main"
+                };
+                if (tg_alias_name in alias_list) {
+                    return alias_list[tg_alias_name];
+                } else {
+                    return "TGID: " + tg_alias_name.toString();
+                }
+            }
+        }, 1500);
+    }
+    async function radioOff(){
+        pwr_on = false;
+        await socket.off('channelAudio');
+        document.getElementById('line1').innerHTML = "PHP Says goodbye";
+        document.getElementById('line2').innerHTML = "https://discord.gg/ctrs";
+        setTimeout(function (){
+            document.getElementById('line1').innerHTML = "";
+            document.getElementById('line2').innerHTML = "";
+        }, 1500);
+    }
+    function radioPower(){
+        if (pwr_on){
+            radioOff();
+        } else {
+            start();
+        }
+    }
+</script>
+<footer>
+    <b>Notes:</b>
+    <ol>
+        <li><b>Who's talking display may not show correct RID</b></li>
+        <li><b>The active talk group that was last heard will display <i>after</i> the person stops talking</b></li>
+        <li><b>Must hit power button to turn the radio on</b></li>
+    </ol>
+    <center>
+        <b> A php production</b>
+    </center>
+</footer>
+</body>
+</html>
