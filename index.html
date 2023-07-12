@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Audio Streaming</title>
     <script src="/public/pcm-player.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
         body {
-            background-color: aqua;
+            background-color: #000101;
+            text-align: center;
+            color: white;
         }
 
         .container {
@@ -26,7 +28,7 @@
             z-index: 1;
             color: black;
             font-size: 25px;
-            font-family: Calibri;
+            font-family: Calibri,serif;
             font-weight: bold;
             text-align: center;
         }
@@ -39,7 +41,7 @@
             z-index: 1;
             color: black;
             font-size: 20px;
-            font-family: Calibri;
+            font-family: Calibri,serif;
             font-weight: bold;
             text-align: center;
         }
@@ -53,7 +55,7 @@
             transform: translate(-50%, -50%);
             z-index: 1;
             font-size: 13px;
-            font-family: Calibri;
+            font-family: Calibri,serif;
             font-weight: bold;
             text-align: center;
             color: transparent;
@@ -62,31 +64,19 @@
             margin: 0;
             border: 0;
         }
-
-        .last_heard {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .last_heard_header {
-            font-weight: bold;
-        }
     </style>
 </head>
 
 <body>
-<center>
+<div style="text-align: center;">
     <div class="container">
         <img class="image" src="/public/o5.jpg" alt="Head">
         <div id="line1" class="line1"></div>
         <div id="line2" class="line2"></div>
         <button id="pwr_button" class="pwr_button" onclick="radioPower()">PW</button>
     </div>
-</center>
-<div class="last_heard">
-    <h3 class="last_heard_header">Last Heard:</h3>
-    <ul id="last_heard_list"></ul>
 </div>
+
 <script>
     let socket = io();
 
@@ -94,14 +84,14 @@
     let talking;
     let current_channel = "xOPS";
     let current_zone = "Centrunk";
-
+    let player;
     function start() {
         pwr_on = true;
         setTimeout(function () {
             document.getElementById('line1').innerHTML = current_zone;
             document.getElementById('line2').innerHTML = current_channel;
 
-            var player = new PCMPlayer({
+            player = new PCMPlayer({
                 encoding: '16bitInt',
                 channels: 1,
                 sampleRate: 8000,
@@ -119,10 +109,10 @@
             let lineToggle = false;
             let intervalId;
 
-            socket.on('disconnect', function (msg) {
+            socket.on('disconnect', function () {
                 intervalId = setInterval(toggleLines, 2000);
             });
-            socket.on('connection', function (msg){
+            socket.on('connection', function (){
                 console.log("reconnected");
                 clearInterval(intervalId);
                 const currentChannelElement = document.getElementById('line2');
@@ -186,16 +176,18 @@
         }
     }
 </script>
-<footer>
-    <b>Notes:</b>
-    <ol>
-        <li><b>Who's talking display may not show correct RID</b></li>
-        <li><b>The active talk group that was last heard will display <i>after</i> the person stops talking</b></li>
-        <li><b>Must hit power button to turn the radio on</b></li>
-    </ol>
-    <center>
-        <b> A php production</b>
-    </center>
-</footer>
 </body>
+<footer>
+    <div style="text-align: center;">
+        <b>Notes:</b>
+        <div style="display: flex; justify-content: center;">
+            <ol style="text-align: left;">
+                <li>Who's talking display may not show correct RID</li>
+                <li>The active talk group that was last heard will display <i>after</i> the person stops talking</li>
+                <li>Must hit power button to turn the radio on</li>
+            </ol>
+        </div>
+        <b>A php production</b>
+    </div>
+</footer>
 </html>

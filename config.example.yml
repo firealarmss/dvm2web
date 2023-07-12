@@ -1,0 +1,7 @@
+httpPort: 3000
+udpRxPort: 34001
+udpRxAddress: 127.0.0.1
+httpAddress: 0.0.0.0
+noCommsHost: 127.0.0.1
+webHookUrl: ""
+debug: false
