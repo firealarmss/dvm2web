@@ -104,6 +104,8 @@
                 let data = new Uint8Array(rcv_data.audio.data);
                 current_channel = tg_alias(rcv_data.dstId);
                 talking = rcv_data.srcId;
+                var dstEjs = '<%= dstTg %>'
+                current_channel = tg_alias(dstEjs);
                 player.feed(data);
             });
             let lineToggle = false;
@@ -143,19 +145,6 @@
             function audioStarted() {
                 document.getElementById('line2').innerHTML = "ID: " + talking;
             }
-
-            function tg_alias(tg_alias_name) {
-                const alias_list = {
-                    31611: "xOPS",
-                    31612: "xTAC 1",
-                    1056: "13-5L Main"
-                };
-                if (tg_alias_name in alias_list) {
-                    return alias_list[tg_alias_name];
-                } else {
-                    return "TGID: " + tg_alias_name.toString();
-                }
-            }
         }, 1500);
     }
     async function radioOff(){
@@ -173,6 +162,19 @@
             radioOff();
         } else {
             start();
+        }
+    }
+
+    function tg_alias(tg_alias_name) {
+        const alias_list = {
+            31611: "xOPS",
+            31612: "xTAC 1",
+            1056: "13-5L Main"
+        };
+        if (tg_alias_name in alias_list) {
+            return alias_list[tg_alias_name];
+        } else {
+            return "TGID: " + tg_alias_name.toString();
         }
     }
 </script>

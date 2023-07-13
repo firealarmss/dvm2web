@@ -12,6 +12,8 @@ import fs from 'fs';
 import yaml from "js-yaml";
 import logger from "./logger.js";
 import { Command } from 'commander';
+import * as path from "path";
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -23,8 +25,11 @@ let httpPort = 3000;
 let udpRxPort = 34001;
 let udpRxAddress = "127.0.0.1";
 let httpAddress = "0.0.0.0";
+let noCommsHost = "127.0.0.1";
 let webHookUrl = "";
-let debug = false;
+let dstTg = 1;
+let debug = true;
+let tgAliasFile = "tg_alias.yml";
 
 const program = new Command();
 
@@ -41,7 +46,7 @@ if (!config){
     process.exit(0)
 }
 if (debug){
-    config = "config.yml";
+    config = "src/config.yml";
 }
 try {
     fs.readFile(config, 'utf8', function (err, data) {
@@ -55,7 +60,9 @@ try {
         udpRxPort = obj.udpRxPort;
         udpRxAddress = obj.udpRxAddress;
         httpAddress = obj.httpAddress;
+        noCommsHost = obj.noCommsHost;
         webHookUrl = obj.webHookUrl;
+        dstTg = obj.dstTg;
         debug = obj.debug;
         logger.info(
             "Config Values:" +
@@ -64,17 +71,46 @@ try {
             `\n     UDP RX Address: ${udpRxAddress}` +
             `\n     HTTP Address: ${httpAddress}` +
             `\n     WebHook URL: ${webHookUrl}` +
+            `\n     dstTg: ${dstTg}` +
             `\n     Debug: ${debug}`
         );
     });
 } catch (err){
     logger.error(`Error reading config file   ${err}`)
 }
+//TODO: Make this work
+/*try {
+    fs.readFile(tgAliasFile, 'utf8', function (err, data2) {
+        if (debug) {
+            logger.debug(`TG Alias File Info: \n${data}`);
+        }
+        logger.info(`Read TG Alias file: ${tgAliasFile}`);
+        let obj = yaml.load(data2);
+        // console.log(obj.udpRxAddress);
+        httpPort = obj.httpPort;
 
-app.use('/public', express.static('public'))
+        for (let i = 0; i < data2.length; i++) {
+            const entry = data2[i];
+            const tgId = entry.tg_id;
+            const alias = entry.alias;
+            console.log(`TG ID: ${tgId}, Alias: ${alias}`);
+        }
+        //
+        // logger.info(
+        //     "Config Values:" +
+        //     `\n     HTTP Port: ${httpPort}`
+        // );
+    });
+} catch (err){
+    logger.error(`Error reading config file   ${err}`)
+}*/
+app.set("views", path.join("src/views"));
+app.set('view engine', 'ejs');
+app.use('/public', express.static('src/public'))
 
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + "/index.html");
+   // res.sendFile(__dirname + "/index.html");
+    res.render('index', {dstTg: dstTg});
 });
 // io.on("connection",function(socket){
 //     socket.emit('connection');

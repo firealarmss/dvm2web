@@ -4,4 +4,5 @@ udpRxAddress: 127.0.0.1
 httpAddress: 0.0.0.0
 noCommsHost: 127.0.0.1
 webHookUrl: ""
+dstTg: 1
 debug: false
