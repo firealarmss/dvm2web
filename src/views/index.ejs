@@ -28,7 +28,7 @@
             z-index: 1;
             color: black;
             font-size: 25px;
-            font-family: Calibri,serif;
+            font-family: Helvetica, serif;
             font-weight: bold;
             text-align: center;
         }
@@ -41,7 +41,7 @@
             z-index: 1;
             color: black;
             font-size: 20px;
-            font-family: Calibri,serif;
+            font-family: Helvetica, serif;
             font-weight: bold;
             text-align: center;
         }
@@ -55,7 +55,7 @@
             transform: translate(-50%, -50%);
             z-index: 1;
             font-size: 13px;
-            font-family: Calibri,serif;
+            font-family: Helvetica,serif;
             font-weight: bold;
             text-align: center;
             color: transparent;
@@ -63,6 +63,25 @@
             padding: 0;
             margin: 0;
             border: 0;
+        }
+        .emerg_button {
+            position: absolute;
+            border-radius: 100%;
+            cursor: pointer;
+            top: 16%;
+            left: 96%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            font-size: 13px;
+            font-family: Helvetica,serif;
+            font-weight: bold;
+            text-align: center;
+            color: transparent;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            border: 0;
+            height: 20px;
         }
     </style>
 </head>
@@ -74,6 +93,7 @@
         <div id="line1" class="line1"></div>
         <div id="line2" class="line2"></div>
         <button id="pwr_button" class="pwr_button" onclick="radioPower()">PW</button>
+        <button id="emerg_button" class="emerg_button" onclick="send_emerg()">EM</button>
     </div>
 </div>
 
@@ -81,11 +101,13 @@
     let socket = io();
 
     let pwr_on = false;
+    let voiceActive = false;
     let talking;
     let current_channel = "xOPS";
     let current_zone = "Centrunk";
     let player;
     function start() {
+        var audioCtx = new(window.AudioContext || window.webkitAudioContext)();
         pwr_on = true;
         setTimeout(function () {
             document.getElementById('line1').innerHTML = current_zone;
@@ -146,6 +168,72 @@
                 document.getElementById('line2').innerHTML = "ID: " + talking;
             }
         }, 1500);
+        socket.on("EMERG", function(msg){
+            let dstId = msg.dstId;
+            let srcId = msg.srcId;
+            let lineToggle = false;
+            let intervalId;
+
+            if (!voiceActive && dstId === current_channel) {
+                emergency_tone_generate();
+                intervalId = setInterval(toggleLines, 2000);
+                voiceActive = true;
+            }
+            function toggleLines() {
+                const line2Element = document.getElementById('line2');
+                const currentChannelElement = document.getElementById('line2');
+
+                if (lineToggle) {
+                    line2Element.innerHTML = "EM: " + srcId;
+                    currentChannelElement.innerHTML = current_channel;
+                } else {
+                    line2Element.innerHTML = current_channel;
+                    currentChannelElement.innerHTML = "EM: " + srcId;
+                }
+
+                lineToggle = !lineToggle;
+            }
+            setTimeout(function (){
+                clearInterval(intervalId);
+                document.getElementById("line2").innerHTML = current_channel;
+                voiceActive = false;
+            }, 20000);
+        });
+        function emergency_tone_generate(){
+            beep(610, 500, 20, 'sine');
+            setTimeout(function () {
+                beep(910, 500, 20, 'sine');
+            }, 500);
+            setTimeout(function () {
+                beep(610, 500, 20, 'sine');
+            }, 1000);
+            setTimeout(function () {
+                beep(910, 500, 20, 'sine');
+            }, 1500);
+        }
+
+
+        function beep(frequency, duration, volume, type) {
+
+            var oscillator = audioCtx.createOscillator();
+            var gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            vol = 1;
+            gainNode.gain.value = vol;
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            oscillator.start();
+
+            setTimeout(
+                function () {
+                    oscillator.stop();
+                },
+                duration
+            );
+        }
     }
     async function radioOff(){
         pwr_on = false;
@@ -177,6 +265,10 @@
             return "TGID: " + tg_alias_name.toString();
         }
     }
+    function send_emerg(){
+        socket.emit("EMERG", {srcId: "123456", dstId: current_channel});
+    }
+
 </script>
 </body>
 <footer>

@@ -28,7 +28,7 @@ let httpAddress = "0.0.0.0";
 let noCommsHost = "127.0.0.1";
 let webHookUrl = "";
 let dstTg = 1;
-let debug = true;
+let debug = false;
 let tgAliasFile = "tg_alias.yml";
 
 const program = new Command();
@@ -46,14 +46,14 @@ if (!config){
     process.exit(0)
 }
 if (debug){
-    config = "src/config.yml";
+    config = "./config.yml";
 }
 try {
     fs.readFile(config, 'utf8', function (err, data) {
         if (debug) {
             logger.debug(`Config File Info: \n${data}`);
         }
-        logger.info(`Read config file: ${config}`)
+        logger.info(`Read config file: ${config}`);
         let obj = yaml.load(data);
         // console.log(obj.udpRxAddress);
         httpPort = obj.httpPort;
@@ -157,6 +157,19 @@ udpSocket.once('message', (message) => {
             }
         });
 });
+//Future additions
+let ignore_peers = [
+    1,
+    9026
+]
+io.on("connection",function (socket){
+    socket.on("EMERG", function(msg){
+        logger.debug(msg.dstId);
+        if (!ignore_peers.includes(msg)) {
+            io.emit("EMERG", {srcId: msg.srcId, dstId: msg.dstId});
+        }
+    });
+});
 function pingDevice(host) {
     return new Promise((resolve) => {
         ping.sys.probe(host, (isAlive) => {
@@ -166,7 +179,7 @@ function pingDevice(host) {
 }
 
 //Future support to maybe add a tad of whackerness to the front end XTL. comment out if the messages get annoying
-const host = '192.168.1.111';
+const host = noCommsHost;
 setInterval(function (){
     pingDevice(host)
         .then((isAlive) => {
