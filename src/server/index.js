@@ -106,7 +106,7 @@ try {
 }*/
 app.set("views", path.join("../views"));
 app.set('view engine', 'ejs');
-app.use('/public', express.static('src/public'))
+app.use('/public', express.static('../public'))
 
 app.get('/', (req, res) => {
    // res.sendFile(__dirname + "/index.html");
