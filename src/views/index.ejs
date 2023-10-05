@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Audio Streaming</title>
+    <title>DVM Audio</title>
     <script src="/public/pcm-player.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
@@ -106,8 +106,51 @@
     let current_channel = "xOPS";
     let current_zone = "Centrunk";
     let player;
+
+
+    // Function to stop audio capture
+    function stopCapture() {
+        if (processor) {
+            processor.disconnect(audioContext.destination);
+            processor.onaudioprocess = null;
+            processor = null;
+        }
+
+        if (source) {
+            source.disconnect();
+            source = null;
+        }
+    }
     function start() {
+
         var audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 8000 });
+
+        function captureAudio() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    const source = audioContext.createMediaStreamSource(stream);
+                    const processor = audioContext.createScriptProcessor(2048, 1, 1); // Mono
+
+                    source.connect(processor);
+                    processor.connect(audioContext.destination);
+
+                    processor.onaudioprocess = function(e) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+
+                        const outputData = new Int16Array(inputData.length);
+                        for (let i = 0; i < inputData.length; i++) {
+                            outputData[i] = Math.min(1, inputData[i]) * 0x7FFF;
+                        }
+
+                        socket.emit('audioData', outputData.buffer);
+                    };
+                })
+                .catch(err => {
+                    console.error('Error accessing the microphone', err);
+                });
+        }
+
         pwr_on = true;
         setTimeout(function () {
             document.getElementById('line1').innerHTML = current_zone;
@@ -127,7 +170,7 @@
                 current_channel = tg_alias(rcv_data.dstId);
                 talking = rcv_data.srcId;
                 var dstEjs = '<%= dstTg %>'
-          //      current_channel = tg_alias(dstEjs);
+                //      current_channel = tg_alias(dstEjs);
                 player.feed(data);
             });
             let lineToggle = false;
@@ -157,7 +200,7 @@
 
                 lineToggle = !lineToggle;
             }
-
+            //captureAudio();
             function audioStopped() {
                 setTimeout(function () {
                     document.getElementById('line2').innerHTML = current_channel;
@@ -237,6 +280,7 @@
     }
     async function radioOff(){
         pwr_on = false;
+   //     stopCapture();
         await socket.off('channelAudio');
         document.getElementById('line1').innerHTML = "PHP Says goodbye";
         document.getElementById('line2').innerHTML = "https://discord.gg/ctrs";
@@ -284,4 +328,3 @@
         <b>A php production</b>
     </div>
 </footer>
-</html>

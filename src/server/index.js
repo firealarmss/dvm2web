@@ -74,6 +74,15 @@ try {
             `\n     dstTg: ${dstTg}` +
             `\n     Debug: ${debug}`
         );
+        server.listen(httpPort, httpAddress, () => {
+            if (debug) {
+                logger.warn('Debug mode enabled');
+            }
+            logger.info(`HTTP Listening on ${httpAddress}:${httpPort}`);
+        });
+        udpSocket.bind(udpRxPort, udpRxAddress,() => {
+            logger.info(`Listening for DVM data on ${udpRxAddress}:${udpRxPort}`);
+        });
     });
 } catch (err){
     logger.error(`Error reading config file   ${err}`)
@@ -112,18 +121,35 @@ app.get('/', (req, res) => {
    // res.sendFile(__dirname + "/index.html");
     res.render('index', {dstTg: dstTg});
 });
+let channels = [
+    { "name": "OPS", "color": "#f2b0a9" },
+    { "name": "13-5L", "color": "#a9d8f2" },
+    { "name": "Asia Tac", "color": "#a9f2cb" }
+]
+
+app.get('/console', (req, res) => {
+    res.render('console', {dstTg: dstTg, channelsData: channels});
+});
 // io.on("connection",function(socket){
 //     socket.emit('connection');
 // });
 let isReceivingMessage;
 udpSocket.on('message', (message) => {
-    const srcId = (message[message.length - 4] << 8) | message[message.length - 3];
-    const dstId = (message[message.length - 2] << 8) | message[message.length - 1];
+    const srcId =
+        (message[message.length - 8] << 24) |
+        (message[message.length - 7]) << 16 |
+        (message[message.length - 6]) << 8 |
+        message[message.length - 5]
+
+    const dstId =
+        (message[message.length - 4] << 24) |
+        (message[message.length - 3]) << 16 |
+        (message[message.length - 2]) << 8 |
+        message[message.length - 1]
     if (debug) {
         logger.info(`Received voice traffic: SRC_ID: ${srcId}, DST_ID: ${dstId}`);
     }
-
-    const audioData = message.slice(0, message.byteLength - 4);
+    const audioData = message.slice(0, message.byteLength - 8);
     lastheard = srcId;
 
     io.emit("channelAudio", JSON.stringify({
@@ -133,30 +159,30 @@ udpSocket.on('message', (message) => {
     }));
     isReceivingMessage = false;
 });
-udpSocket.once('message', (message) => {
-    const srcId = (message[message.length - 4] << 8) | message[message.length - 3];
-    const dstId = (message[message.length - 2] << 8) | message[message.length - 1];
-
-        // Send message to Discord webhook
-        let params = {
-            username: "Centrunk Last Heard",
-            avatar_url: "",
-            content: `Transmission started: SRC_ID: ${srcId}, DST_ID: ${dstId}`
-        }
-
-        fetch(webHookUrl, {
-            method: "POST",
-            headers: {
-                'Content-type': 'application/json'
-            },
-            body: JSON.stringify(params)
-        }).catch(err =>{
-            logger.error(`Fail to send webhook message`)
-            if (debug){
-                logger.debug(err);
-            }
-        });
-});
+// udpSocket.once('message', (message) => {
+//     const srcId = (message[message.length - 4] << 8) | message[message.length - 3];
+//     const dstId = (message[message.length - 2] << 8) | message[message.length - 1];
+//
+//         // Send message to Discord webhook
+//         let params = {
+//             username: "Centrunk Last Heard",
+//             avatar_url: "",
+//             content: `Transmission started: SRC_ID: ${srcId}, DST_ID: ${dstId}`
+//         }
+//
+//         fetch(webHookUrl, {
+//             method: "POST",
+//             headers: {
+//                 'Content-type': 'application/json'
+//             },
+//             body: JSON.stringify(params)
+//         }).catch(err =>{
+//             logger.error(`Fail to send webhook message`)
+//             if (debug){
+//                 logger.debug(err);
+//             }
+//         });
+// });
 //Future additions
 let ignore_peers = [
     1,
@@ -168,6 +194,14 @@ io.on("connection",function (socket){
         if (!ignore_peers.includes(msg)) {
             io.emit("EMERG", {srcId: msg.srcId, dstId: msg.dstId});
         }
+    });
+    socket.on('audioData', (msg) => {
+        // Sending data over UDP
+        const message = Buffer.from(msg); // Assuming 'msg' is a string, otherwise adjust accordingly.
+        udpSocket.send(message, 32001, 'localhost', (err) => {
+            if (err) console.error('UDP error:', err);
+            console.log('UDP message sent');
+        });
     });
 });
 function pingDevice(host) {
@@ -198,13 +232,3 @@ setInterval(function (){
            }
         });
 }, 10000);
-
-server.listen(httpPort, httpAddress, () => {
-    if (debug) {
-        logger.warn('Debug mode enabled');
-    }
-    logger.info(`HTTP Listening on ${httpAddress}:${httpPort}`);
-});
-udpSocket.bind(udpRxPort, udpRxAddress,() => {
-    logger.info(`Listening for DVM data on ${udpRxAddress}:${udpRxPort}`);
-});
